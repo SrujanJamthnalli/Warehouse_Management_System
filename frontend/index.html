@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Warehouse Management</title>
+
+  <!-- Tailwind (CDN) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: { brand: { DEFAULT:'#2563eb', 50:'#eff6ff', 600:'#2563eb', 700:'#1d4ed8' } }
+        }
+      }
+    }
+  </script>
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined" />
+  <style>
+    .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght'400,'GRAD'0,'opsz'24;}
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900">
+  <div class="min-h-screen flex">
+    <!-- Sidebar -->
+    <aside class="hidden md:flex md:w-64 flex-col bg-white border-r border-gray-200">
+      <div class="h-16 flex items-center gap-2 px-6 border-b">
+        <span class="text-2xl">📦</span>
+        <h1 class="text-xl font-bold">Warehouse</h1>
+      </div>
+      <nav class="flex-1 p-4 space-y-1" id="sidebar-nav">
+        <button data-tab="dashboard" class="nav-btn w-full text-left px-3 py-2 rounded bg-brand-50 text-brand-700">Dashboard</button>
+        <button data-tab="products"  class="nav-btn w-full text-left px-3 py-2 rounded hover:bg-gray-100">Products</button>
+        <button data-tab="suppliers" class="nav-btn w-full text-left px-3 py-2 rounded hover:bg-gray-100">Suppliers</button>
+        <button data-tab="pos"       class="nav-btn w-full text-left px-3 py-2 rounded hover:bg-gray-100">Purchase Orders</button>
+        <button data-tab="sales"     class="nav-btn w-full text-left px-3 py-2 rounded hover:bg-gray-100">Sales</button>
+      </nav>
+      <div class="p-4 text-xs text-gray-500">Single server @ http://localhost:4000</div>
+    </aside>
+
+    <!-- Main -->
+    <div class="flex-1 flex flex-col">
+      <!-- Topbar -->
+      <header class="h-16 bg-white border-b flex items-center justify-between px-4 md:px-6">
+        <div class="flex items-center gap-3">
+          <button id="mobile-menu" class="md:hidden p-2 rounded-md hover:bg-gray-100">
+            <span class="material-symbols-outlined">menu</span>
+          </button>
+          <h2 id="page-title" class="text-lg font-semibold">Dashboard</h2>
+        </div>
+        <span class="text-sm text-gray-500 hidden sm:block">Warehouse Management</span>
+      </header>
+
+      <!-- Content -->
+      <main id="main" class="p-6 space-y-6">
+        <!-- Toasts + Modal roots -->
+        <div id="toast" class="hidden fixed right-4 top-4 z-50"></div>
+        <div id="modal-backdrop" class="hidden fixed inset-0 bg-black/30 z-40"></div>
+        <div id="modals-root" class="z-50"></div>
+
+        <!-- Dashboard -->
+        <section id="tab-dashboard" class="tab">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div class="bg-white p-4 rounded-2xl shadow-sm border">
+              <div class="text-sm text-gray-500">Total Products</div>
+              <div id="card-total-products" class="text-3xl font-bold mt-1">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border">
+              <div class="text-sm text-gray-500">Stock on Hand</div>
+              <div id="card-total-qty" class="text-3xl font-bold mt-1">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border">
+              <div class="text-sm text-gray-500">Suppliers</div>
+              <div id="card-total-sup" class="text-3xl font-bold mt-1">0</div>
+            </div>
+            <div class="bg-white p-4 rounded-2xl shadow-sm border">
+              <div class="text-sm text-gray-500">Open POs</div>
+              <div id="card-open-pos" class="text-3xl font-bold mt-1">0</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-sm border">
+              <div class="p-4 border-b flex items-center justify-between">
+                <h3 class="font-semibold">Low Stock</h3>
+                <div class="text-sm text-gray-500">Qty ≤ 5</div>
+              </div>
+              <div class="p-4 overflow-auto">
+                <table class="min-w-full text-sm">
+                  <thead><tr class="text-left text-gray-500">
+                    <th class="py-2">Product</th><th class="py-2">Qty</th><th class="py-2">Location</th>
+                  </tr></thead>
+                  <tbody id="tbl-lowstock"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-sm border">
+              <div class="p-4 border-b flex items-center justify-between">
+                <h3 class="font-semibold">Recent Purchase Orders</h3>
+                <button id="btn-refresh-pos" class="text-brand-600 hover:underline text-sm">Refresh</button>
+              </div>
+              <div class="p-4 overflow-auto">
+                <table class="min-w-full text-sm">
+                  <thead><tr class="text-left text-gray-500">
+                    <th class="py-2">PO</th><th class="py-2">Supplier</th><th class="py-2">Date</th><th class="py-2">Status</th>
+                  </tr></thead>
+                  <tbody id="tbl-recent-pos"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Products -->
+        <section id="tab-products" class="tab hidden">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-semibold">Products</h3>
+            <div class="flex gap-2">
+              <input id="search-products" placeholder="Search..." class="px-3 py-2 border rounded-lg" />
+              <button id="open-add-product" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Add Product</button>
+            </div>
+          </div>
+          <div class="bg-white mt-4 rounded-2xl shadow-sm border overflow-hidden">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="py-2 px-3 text-left">ID</th>
+                  <th class="py-2 px-3 text-left">Name</th>
+                  <th class="py-2 px-3 text-left">Qty</th>
+                  <th class="py-2 px-3 text-left">Location</th>
+                  <th class="py-2 px-3 text-left">Description</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-products" class="divide-y"></tbody>
+            </table>
+          </div>
+
+          <div class="mt-8 grid grid-cols-1 xl:grid-cols-2 gap-6">
+            <div class="bg-white rounded-2xl shadow-sm border">
+              <div class="p-4 border-b flex items-center justify-between">
+                <h4 class="font-semibold">Pricing</h4>
+                <button id="open-add-pricing" class="px-3 py-1.5 bg-gray-900 text-white rounded-lg">Add Pricing</button>
+              </div>
+              <div class="p-4">
+                <table class="min-w-full text-sm">
+                  <thead><tr class="text-left text-gray-500">
+                    <th class="py-2">Product</th><th class="py-2">Unit Price</th><th class="py-2">Net Price</th>
+                  </tr></thead>
+                  <tbody id="tbl-netprices"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Suppliers -->
+        <section id="tab-suppliers" class="tab hidden">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-semibold">Suppliers</h3>
+            <button id="open-add-supplier" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Add Supplier</button>
+          </div>
+          <div class="bg-white mt-4 rounded-2xl shadow-sm border overflow-hidden">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="py-2 px-3 text-left">ID</th>
+                  <th class="py-2 px-3 text-left">Name</th>
+                  <th class="py-2 px-3 text-left">Contact</th>
+                  <th class="py-2 px-3 text-left">Bank</th>
+                  <th class="py-2 px-3 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-suppliers" class="divide-y"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Purchase Orders -->
+        <section id="tab-pos" class="tab hidden">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-semibold">Purchase Orders</h3>
+            <div class="flex gap-2">
+              <button id="open-create-po" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Create PO</button>
+              <button id="open-add-po-item" class="px-4 py-2 bg-gray-900 text-white rounded-lg">Add PO Item</button>
+            </div>
+          </div>
+          <div class="bg-white mt-4 rounded-2xl shadow-sm border overflow-hidden">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="py-2 px-3 text-left">PO ID</th>
+                  <th class="py-2 px-3 text-left">Supplier</th>
+                  <th class="py-2 px-3 text-left">Order Date</th>
+                  <th class="py-2 px-3 text-left">Status</th>
+                  <th class="py-2 px-3 text-left">Expected</th>
+                  <th class="py-2 px-3 text-left">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-pos" class="divide-y"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <!-- Sales -->
+        <section id="tab-sales" class="tab hidden">
+          <div class="flex items-center justify-between">
+            <h3 class="text-xl font-semibold">Sales</h3>
+            <button id="open-process-sale" class="px-4 py-2 bg-brand-600 text-white rounded-lg hover:bg-brand-700">Process Sale</button>
+          </div>
+          <div class="bg-white mt-4 rounded-2xl shadow-sm border overflow-hidden">
+            <table class="min-w-full text-sm">
+              <thead class="bg-gray-50 text-gray-600">
+                <tr>
+                  <th class="py-2 px-3 text-left">SO ID</th>
+                  <th class="py-2 px-3 text-left">Customer</th>
+                  <th class="py-2 px-3 text-left">Date</th>
+                  <th class="py-2 px-3 text-left">Status</th>
+                  <th class="py-2 px-3 text-left">Total</th>
+                </tr>
+              </thead>
+              <tbody id="tbl-sales" class="divide-y"></tbody>
+            </table>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
